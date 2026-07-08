@@ -1,0 +1,502 @@
+@import "tailwindcss";
+
+/*
+  Bask For Business brand tokens. Source of truth: public/assets/bask-DESIGN.md.
+  Navy substrate, one decisive pink, off white breathing panels. No drop shadows
+  on dark surfaces except the colored glow under the single primary CTA.
+*/
+:root {
+  --navy: #050d30;
+  --navy-2: #0b1b52;
+  --pink: #fa0f4b;
+  --offwhite: #f9f9fb;
+  --ink: #2b2b2b;
+  --white: #ffffff;
+  --hairline: rgba(255, 255, 255, 0.14);
+  --hairline-soft: rgba(255, 255, 255, 0.12);
+}
+
+@theme inline {
+  --color-navy: var(--navy);
+  --color-navy-2: var(--navy-2);
+  --color-pink: var(--pink);
+  --color-offwhite: var(--offwhite);
+  --color-ink: var(--ink);
+  --font-display: var(--font-manrope);
+  --font-body: var(--font-inter);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--navy);
+  color: var(--white);
+  font-family: var(--font-inter), system-ui, sans-serif;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-manrope), system-ui, sans-serif;
+  margin: 0;
+  letter-spacing: -0.02em;
+  font-weight: 800;
+}
+
+/* Visible keyboard focus on every interactive element (accessibility floor). */
+a:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--pink);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* ---- Fixed signature graphic layer, behind all content, never traps scroll ---- */
+.scene-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.page {
+  position: relative;
+  z-index: 1;
+}
+
+/* ---- Navigation ---- */
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 8vw;
+  background: linear-gradient(
+    to bottom,
+    rgba(5, 13, 48, 0.92),
+    rgba(5, 13, 48, 0)
+  );
+  backdrop-filter: blur(4px);
+}
+.logo {
+  font-family: var(--font-manrope), sans-serif;
+  font-weight: 800;
+  font-size: 20px;
+  color: var(--white);
+  line-height: 1;
+}
+.logo span {
+  color: var(--pink);
+  display: block;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  margin-top: 3px;
+}
+.navlinks {
+  display: flex;
+  gap: 28px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+}
+.navlinks a {
+  color: inherit;
+  text-decoration: none;
+}
+.navlinks a:hover {
+  color: var(--white);
+}
+
+/* ---- Section rhythm ---- */
+.section {
+  padding: 100px 8vw 90px;
+  position: relative;
+}
+.eyebrow {
+  color: var(--pink);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-bottom: 18px;
+}
+
+/* ---- Buttons ---- */
+.btn-primary {
+  display: inline-block;
+  background: var(--pink);
+  color: var(--white);
+  border: none;
+  padding: 16px 26px;
+  border-radius: 10px;
+  font-family: var(--font-manrope), sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  text-decoration: none;
+  box-shadow: 0 10px 30px rgba(250, 15, 75, 0.35);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 38px rgba(250, 15, 75, 0.45);
+}
+.btn-primary.compact {
+  padding: 11px 18px;
+  font-size: 13px;
+  box-shadow: 0 8px 22px rgba(250, 15, 75, 0.3);
+}
+.btn-secondary {
+  color: var(--white);
+  font-size: 15px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  opacity: 0.85;
+}
+.btn-secondary:hover {
+  opacity: 1;
+}
+.cta-row {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-top: 34px;
+  flex-wrap: wrap;
+}
+
+/* ---- Hero ---- */
+.hero {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.hero h1 {
+  font-size: clamp(34px, 5.4vw, 64px);
+  line-height: 1.08;
+  max-width: 16ch;
+}
+.hero .sub {
+  max-width: 52ch;
+  font-size: 19px;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.82);
+  margin-top: 22px;
+}
+.scrolltip {
+  margin-top: 56px;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* ---- Off white breathing panel ---- */
+.panel {
+  background: var(--offwhite);
+  color: var(--ink);
+}
+.panel .eyebrow {
+  color: var(--pink);
+}
+.panel h2 {
+  color: var(--navy);
+}
+
+/* ---- Proof strip ---- */
+.proof-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  margin-top: 40px;
+}
+.proof-stat {
+  background: var(--white);
+  border: 1px solid #e7e7ee;
+  border-radius: 14px;
+  padding: 26px 22px;
+}
+.proof-num {
+  font-family: var(--font-manrope), sans-serif;
+  font-weight: 800;
+  font-size: 30px;
+  color: var(--navy);
+}
+.proof-label {
+  font-size: 13px;
+  color: #666;
+  margin-top: 8px;
+}
+.needs-input {
+  color: var(--pink);
+  font-weight: 700;
+  font-size: 13px;
+}
+.badge-row {
+  display: flex;
+  gap: 14px;
+  margin-top: 32px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.badge {
+  background: var(--white);
+  border: 1px solid #e7e7ee;
+  border-radius: 10px;
+  padding: 12px 20px;
+  font-weight: 600;
+  color: #333;
+  font-size: 14px;
+}
+.badge.tokened {
+  color: var(--pink);
+  border-style: dashed;
+}
+.badge-note {
+  width: 100%;
+  font-size: 12px;
+  color: #888;
+  margin-top: 4px;
+}
+
+/* ---- Testimonials ---- */
+.quote-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 22px;
+  margin-top: 40px;
+}
+.quote-card {
+  background: var(--white);
+  border: 1px solid #e7e7ee;
+  border-radius: 14px;
+  padding: 26px;
+}
+.quote-card p {
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--ink);
+}
+.quote-attr {
+  margin-top: 16px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+/* ---- Two path cards on navy ---- */
+.paths h2 {
+  color: var(--white);
+  font-size: clamp(28px, 3.6vw, 42px);
+  max-width: 18ch;
+}
+.path-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  margin-top: 48px;
+}
+.path-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--hairline);
+  border-radius: 18px;
+  padding: 34px;
+  backdrop-filter: blur(6px);
+  display: flex;
+  flex-direction: column;
+}
+.path-tier {
+  color: var(--pink);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.path-card h3 {
+  color: var(--white);
+  font-size: 24px;
+  margin-top: 10px;
+}
+.path-card p {
+  color: rgba(255, 255, 255, 0.75);
+  margin-top: 12px;
+  line-height: 1.55;
+  font-size: 15px;
+}
+.path-card .meta {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 13px;
+  margin-top: 14px;
+}
+.path-link {
+  display: inline-block;
+  margin-top: 22px;
+  color: var(--white);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 2px solid var(--pink);
+  padding-bottom: 3px;
+  width: fit-content;
+}
+
+/* ---- Pricing and objections ---- */
+.pricing h2 {
+  color: var(--white);
+  font-size: clamp(26px, 3.4vw, 38px);
+  max-width: 20ch;
+}
+.price-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr 1fr;
+  gap: 24px;
+  margin-top: 40px;
+}
+.price-main {
+  background: var(--navy-2);
+  color: var(--white);
+  border: 1px solid var(--hairline);
+  border-radius: 16px;
+  padding: 30px;
+}
+.price-kicker {
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+}
+.price-main .amt {
+  font-family: var(--font-manrope), sans-serif;
+  font-weight: 800;
+  font-size: 26px;
+  color: var(--pink);
+  margin-top: 10px;
+}
+.price-main p {
+  color: rgba(255, 255, 255, 0.78);
+  margin-top: 12px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.price-side {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--hairline);
+  border-radius: 16px;
+  padding: 26px;
+}
+.price-side h4 {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: var(--white);
+}
+.price-side p {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.72);
+  line-height: 1.55;
+}
+
+/* ---- What we handle ---- */
+.handle h2 {
+  color: var(--white);
+  font-size: clamp(26px, 3.4vw, 38px);
+  max-width: 20ch;
+}
+.handle-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 22px;
+  margin-top: 44px;
+}
+.handle-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--hairline-soft);
+  border-radius: 14px;
+  padding: 24px;
+}
+.handle-card h4 {
+  color: var(--white);
+  font-size: 16px;
+  margin-bottom: 10px;
+}
+.handle-card p {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ---- Final CTA ---- */
+.final-cta {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: linear-gradient(180deg, rgba(5, 13, 48, 0), var(--navy) 60%);
+}
+.final-cta h2 {
+  font-size: clamp(28px, 4vw, 46px);
+  max-width: 18ch;
+  margin: 0 auto;
+  color: var(--white);
+}
+.final-cta .cta-row {
+  justify-content: center;
+}
+
+/* ---- Footer ---- */
+.footer {
+  background: var(--navy);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 40px 8vw;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+/* ---- Responsive floor. Grids collapse, gutters tighten on phones. ---- */
+@media (max-width: 900px) {
+  .proof-grid,
+  .handle-grid,
+  .quote-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .path-grid,
+  .price-grid {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 620px) {
+  .nav {
+    padding: 16px 6vw;
+  }
+  .navlinks {
+    display: none;
+  }
+  .section {
+    padding: 88px 6vw 64px;
+  }
+  .proof-grid,
+  .handle-grid,
+  .quote-grid {
+    grid-template-columns: 1fr;
+  }
+}

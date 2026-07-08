@@ -1,0 +1,18 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "dev",
+      "runtimeExecutable": "wsl",
+      "runtimeArgs": [
+        "-d",
+        "Ubuntu",
+        "--",
+        "bash",
+        "-lc",
+        "cd /home/lumindae/dev/bask-3d && npm run dev -- --hostname 0.0.0.0 --port 3000"
+      ],
+      "port": 3000
+    }
+  ]
+}
