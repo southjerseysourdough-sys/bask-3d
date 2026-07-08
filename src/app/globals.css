@@ -195,6 +195,8 @@ button:focus-visible {
   font-size: clamp(34px, 5.4vw, 64px);
   line-height: 1.08;
   max-width: 16ch;
+  /* navy haze to keep the live text legible over the bright dot disc */
+  text-shadow: 0 2px 28px rgba(5, 13, 48, 0.6);
 }
 .hero .sub {
   max-width: 52ch;
@@ -202,6 +204,7 @@ button:focus-visible {
   line-height: 1.55;
   color: rgba(255, 255, 255, 0.82);
   margin-top: 22px;
+  text-shadow: 0 2px 22px rgba(5, 13, 48, 0.55);
 }
 .scrolltip {
   margin-top: 56px;
