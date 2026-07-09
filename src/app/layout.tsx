@@ -1,16 +1,10 @@
 import type { Metadata, Viewport } from "next";
-import { Manrope, Inter } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 
-// Display face for headings and the wordmark, body face for reading copy.
-// Loaded through next/font so both self host with no layout shift.
-const manrope = Manrope({
-  variable: "--font-manrope",
-  subsets: ["latin"],
-  weight: ["500", "700", "800"],
-  display: "swap",
-});
-
+// One restrained grotesque for the whole system. Headings run at medium (500),
+// never bold, for the calm editorial voice. Body at 400. Loaded through
+// next/font so it self hosts with no layout shift.
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
@@ -54,7 +48,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${manrope.variable} ${inter.variable}`}>
+    <html lang="en" className={inter.variable}>
       <body>{children}</body>
     </html>
   );

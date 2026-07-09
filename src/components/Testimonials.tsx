@@ -1,23 +1,27 @@
-// Testimonials, tokenized until the client supplies real quotes. Room for two
-// or three. Every quote and attribution is a placeholder, nothing invented.
+// Testimonials, tokenized until the client supplies real quotes. Room for
+// three. Every quote and attribution is a placeholder, nothing invented.
 
 type Quote = {
   body: string;
-  attribution: string;
+  name: string;
+  handle: string;
 };
 
 const QUOTES: Quote[] = [
   {
     body: "[[NEEDS INPUT: testimonial 1, one or two sentences]]",
-    attribution: "[[NEEDS INPUT: name, business]]",
+    name: "[[NEEDS INPUT: name]]",
+    handle: "[[NEEDS INPUT: business]]",
   },
   {
     body: "[[NEEDS INPUT: testimonial 2, one or two sentences]]",
-    attribution: "[[NEEDS INPUT: name, business]]",
+    name: "[[NEEDS INPUT: name]]",
+    handle: "[[NEEDS INPUT: business]]",
   },
   {
     body: "[[NEEDS INPUT: testimonial 3, optional]]",
-    attribution: "[[NEEDS INPUT: name, business]]",
+    name: "[[NEEDS INPUT: name]]",
+    handle: "[[NEEDS INPUT: business]]",
   },
 ];
 
@@ -26,12 +30,16 @@ export function Testimonials() {
     <div className="quote-grid">
       {QUOTES.map((q, i) => (
         <figure className="quote-card" key={i}>
+          <div className="quote-head">
+            <span className="avatar" aria-hidden="true" />
+            <div>
+              <div className="quote-name needs-input">{q.name}</div>
+              <div className="quote-handle needs-input">{q.handle}</div>
+            </div>
+          </div>
           <blockquote>
             <p className="needs-input">{q.body}</p>
           </blockquote>
-          <figcaption className="quote-attr needs-input">
-            {q.attribution}
-          </figcaption>
         </figure>
       ))}
     </div>

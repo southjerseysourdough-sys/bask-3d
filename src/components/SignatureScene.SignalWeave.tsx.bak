@@ -1,0 +1,302 @@
+"use client";
+
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import {
+  EffectComposer,
+  DepthOfField,
+  Bloom,
+  Vignette,
+} from "@react-three/postprocessing";
+import * as THREE from "three";
+import { scrollProgress, useScrollProgress } from "./scroll";
+
+/*
+  The Bask signature graphic: Signal Weave.
+
+  A dotted twisted pair of strands (one signal, read like a network pair) wound
+  into a tight coil in the hero, a single pulse. As you scroll through the proof
+  panel (opaque, so the unwind happens out of sight) it opens into a wide woven
+  arc that spans behind the Core Support and Managed IT cards. Near the final
+  call to action it recoils back into the pulse.
+
+  The read: one signal, always on, whether you are on Core Support or full
+  Managed IT.
+
+  Motion is one continuous timeline driven by scroll progress 0 to 1, read once
+  per frame. The dots are unlit and bright, bloom lets the signal glow.
+*/
+
+// ---- Camera, measured from the reference framing ----
+const CAMERA_FOV = 30;
+const CAMERA_Z_NEAR = 8.4;
+const CAMERA_Z_FAR = 9.6;
+const STATIC_PROGRESS = 0.06; // frozen coil pose for reduced motion
+
+// ---- Named stages as ranges of scroll progress ----
+const UNWIND_FROM = 0.16;
+const UNWIND_TO = 0.44; // by here the arc spans behind the cards
+const RECOIL_FROM = 0.84;
+const RECOIL_TO = 1.0; // by here it is a coil again
+
+// ---- Coil (hero pulse). Sits a touch right and up so the left aligned
+// headline stays clear. ----
+const COIL_CENTER: [number, number, number] = [0.55, 0.15, 0];
+const COIL_R = 0.5;
+const COIL_H = 2.5;
+const COIL_TURNS = 8;
+
+// ---- Open woven arc, spanning behind both cards (world x about plus or minus
+// 2 projects to the card centers at this camera framing). ----
+const ARC_CENTER: [number, number, number] = [0, 0.05, -0.35];
+const ARC_W = 6.2;
+const ARC_BOW = 0.75;
+const WEAVE_TURNS = 4;
+const WEAVE_R = 0.5;
+
+const STRANDS = 2;
+const COLOR_INTENSITY = 1.7; // push colors past 1 so bloom picks them up
+
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
+function clamp01(v: number): number {
+  return Math.max(0, Math.min(1, v));
+}
+function smoothstep(a: number, b: number, x: number): number {
+  const t = clamp01((x - a) / (b - a));
+  return t * t * (3 - 2 * t);
+}
+function stage(p: number, a: number, b: number): number {
+  return clamp01((p - a) / (b - a));
+}
+
+// Build both target shapes (coil and arc) plus per dot color and size, once.
+function buildWeave(mobile: boolean): {
+  N: number;
+  coil: Float32Array;
+  arc: Float32Array;
+  colors: Float32Array;
+  sizes: Float32Array;
+} {
+  const perStrand = mobile ? 340 : 680;
+  const N = perStrand * STRANDS;
+  const coil = new Float32Array(N * 3);
+  const arc = new Float32Array(N * 3);
+  const colors = new Float32Array(N * 3);
+  const sizes = new Float32Array(N);
+
+  const cBlue = new THREE.Color("#2E6BFF");
+  const cPink = new THREE.Color("#FA0F4B");
+  const cPale = new THREE.Color("#CFE3FF");
+  const scratch = new THREE.Color();
+
+  let k = 0;
+  for (let s = 0; s < STRANDS; s++) {
+    const phase = (s / STRANDS) * Math.PI * 2;
+    for (let j = 0; j < perStrand; j++) {
+      const t = j / (perStrand - 1);
+
+      // coil: two strands spiralling tightly around a short vertical axis
+      const ca = t * Math.PI * 2 * COIL_TURNS + phase;
+      coil[k * 3] = COIL_CENTER[0] + COIL_R * Math.cos(ca);
+      coil[k * 3 + 1] = COIL_CENTER[1] + (t - 0.5) * COIL_H;
+      coil[k * 3 + 2] = COIL_CENTER[2] + COIL_R * Math.sin(ca);
+
+      // arc: the same two strands weaving over and under along a wide bow
+      const wa = t * Math.PI * 2 * WEAVE_TURNS + phase;
+      arc[k * 3] = ARC_CENTER[0] + (t - 0.5) * ARC_W;
+      arc[k * 3 + 1] =
+        ARC_CENTER[1] + ARC_BOW * Math.sin(t * Math.PI) + WEAVE_R * Math.sin(wa);
+      arc[k * 3 + 2] = ARC_CENTER[2] + WEAVE_R * Math.cos(wa);
+
+      // color: cool blue signal with a pink pulse concentrated at the center
+      // (pink used sparingly, like an alert), plus occasional pale sparkles
+      const pinkW = Math.exp(-Math.pow((t - 0.5) / 0.13, 2));
+      scratch.copy(cBlue).lerp(cPink, pinkW * 0.9);
+      if (Math.random() < 0.05) scratch.lerp(cPale, 0.7);
+      scratch.multiplyScalar(COLOR_INTENSITY);
+      colors[k * 3] = scratch.r;
+      colors[k * 3 + 1] = scratch.g;
+      colors[k * 3 + 2] = scratch.b;
+
+      sizes[k] = (mobile ? 0.03 : 0.028) * (1 + pinkW * 0.7);
+      k++;
+    }
+  }
+  return { N, coil, arc, colors, sizes };
+}
+
+function SignalWeave({
+  animate,
+  mobile,
+}: {
+  animate: boolean;
+  mobile: boolean;
+}) {
+  const meshRef = useRef<THREE.InstancedMesh>(null);
+  const group = useRef<THREE.Group>(null);
+  const eased = useRef(0);
+  const invalidate = useThree((s) => s.invalidate);
+  const { N, coil, arc, colors, sizes } = useMemo(
+    () => buildWeave(mobile),
+    [mobile]
+  );
+  const dummy = useMemo(() => new THREE.Object3D(), []);
+
+  const writeMatrices = (p: number) => {
+    const mesh = meshRef.current;
+    if (!mesh) return;
+    const eu = smoothstep(UNWIND_FROM, UNWIND_TO, p) *
+      (1 - smoothstep(RECOIL_FROM, RECOIL_TO, p));
+    for (let i = 0; i < N; i++) {
+      dummy.position.set(
+        lerp(coil[i * 3], arc[i * 3], eu),
+        lerp(coil[i * 3 + 1], arc[i * 3 + 1], eu),
+        lerp(coil[i * 3 + 2], arc[i * 3 + 2], eu)
+      );
+      const s = sizes[i];
+      dummy.scale.set(s, s, s);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(i, dummy.matrix);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+  };
+
+  // Colors are fixed. Set them once, and lay down the initial (static) pose.
+  useLayoutEffect(() => {
+    const mesh = meshRef.current;
+    if (!mesh) return;
+    const c = new THREE.Color();
+    for (let i = 0; i < N; i++) {
+      c.setRGB(colors[i * 3], colors[i * 3 + 1], colors[i * 3 + 2]);
+      mesh.setColorAt(i, c);
+    }
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    writeMatrices(STATIC_PROGRESS);
+    // In demand mode (reduced motion) nothing else triggers a frame, so render
+    // once now that colors and matrices are in place.
+    invalidate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [N]);
+
+  useFrame((state) => {
+    if (!animate) return;
+    eased.current += (scrollProgress.current - eased.current) * 0.08;
+    writeMatrices(eased.current);
+    if (group.current) {
+      // subtle bounded sway so the signal feels live without drifting the arc
+      // off the cards
+      group.current.rotation.y = 0.06 * Math.sin(state.clock.elapsedTime * 0.4);
+    }
+  });
+
+  return (
+    <group ref={group}>
+      <instancedMesh
+        ref={meshRef}
+        args={[undefined, undefined, N]}
+        frustumCulled={false}
+      >
+        <sphereGeometry args={[1, mobile ? 6 : 8, mobile ? 6 : 8]} />
+        {/* unlit and bright, so the color is the signal and bloom is the glow */}
+        <meshBasicMaterial toneMapped={false} />
+      </instancedMesh>
+    </group>
+  );
+}
+
+function CameraRig({ animate }: { animate: boolean }) {
+  const eased = useRef(0);
+  useFrame((state) => {
+    if (!animate) return;
+    eased.current += (scrollProgress.current - eased.current) * 0.08;
+    state.camera.position.z = lerp(
+      CAMERA_Z_NEAR,
+      CAMERA_Z_FAR,
+      stage(eased.current, 0, 0.6)
+    );
+    state.camera.lookAt(0, 0, 0);
+  });
+  return null;
+}
+
+function PostFX({ mobile }: { mobile: boolean }) {
+  // Reference stack order: depth of field, bloom, vignette.
+  return (
+    <EffectComposer>
+      {mobile ? (
+        <></>
+      ) : (
+        <DepthOfField focusDistance={0.09} focalLength={0.02} bokehScale={2.2} />
+      )}
+      <Bloom
+        intensity={0.9}
+        luminanceThreshold={0.75}
+        luminanceSmoothing={0.85}
+        mipmapBlur
+        radius={0.6}
+      />
+      <Vignette offset={0.32} darkness={0.9} />
+    </EffectComposer>
+  );
+}
+
+export default function SignatureScene() {
+  useScrollProgress();
+  const [ready, setReady] = useState(false);
+  const [mobile, setMobile] = useState(false);
+  const [animate, setAnimate] = useState(true);
+
+  useEffect(() => {
+    const reduce = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+    setMobile(window.innerWidth < 760);
+    setAnimate(!reduce);
+    setReady(true);
+  }, []);
+
+  // The canvas sits in a position fixed container. On first mount R3F can
+  // measure that container as zero before its own resize listener is attached,
+  // leaving the canvas at its default 300x150. Kick a re-measure a few times
+  // until R3F sizes the canvas (it stamps an inline width once it does).
+  useEffect(() => {
+    if (!ready) return;
+    let tries = 0;
+    let timer = 0;
+    const kick = () => {
+      window.dispatchEvent(new Event("resize"));
+      const canvas = document.querySelector<HTMLCanvasElement>(
+        ".scene-bg canvas"
+      );
+      tries += 1;
+      if ((!canvas || !canvas.style.width) && tries < 20) {
+        timer = window.setTimeout(kick, 60);
+      }
+    };
+    timer = window.setTimeout(kick, 0);
+    return () => window.clearTimeout(timer);
+  }, [ready]);
+
+  if (!ready) return null;
+
+  return (
+    <Canvas
+      frameloop={animate ? "always" : "demand"}
+      dpr={[1, mobile ? 1.5 : 2]}
+      gl={{ antialias: true, alpha: false, powerPreference: "high-performance" }}
+      camera={{
+        fov: CAMERA_FOV,
+        near: 0.1,
+        far: 100,
+        position: [0, 0, CAMERA_Z_NEAR],
+      }}
+    >
+      <color attach="background" args={["#050D30"]} />
+      <SignalWeave animate={animate} mobile={mobile} />
+      <CameraRig animate={animate} />
+      <PostFX mobile={mobile} />
+    </Canvas>
+  );
+}

@@ -1,29 +1,35 @@
 @import "tailwindcss";
 
 /*
-  Bask For Business brand tokens. Source of truth: public/assets/bask-DESIGN.md.
-  Navy substrate, one decisive pink, off white breathing panels. No drop shadows
-  on dark surfaces except the colored glow under the single primary CTA.
+  Bask For Business, styled after the Reflect "starlit cosmos" system but on the
+  Bask navy void with the Bask pink as the single chromatic signal.
+
+  Rules of the system:
+  - One continuous dark scroll. No alternating background panels.
+  - Separation by inset rim-light glows, never borders or drop shadows.
+  - Headings at medium weight (500), never bold. The restraint is the voice.
+  - Pink is punctuation, not paint: links, focus, one CTA, small accents only.
+  - Tight radii: 5px controls, 16px cards, 24px feature blocks, 32px badges,
+    999px nav pill.
 */
 :root {
-  --navy: #050d30;
-  --navy-2: #0b1b52;
-  --pink: #fa0f4b;
-  --offwhite: #f9f9fb;
-  --ink: #2b2b2b;
-  --white: #ffffff;
-  --hairline: rgba(255, 255, 255, 0.14);
-  --hairline-soft: rgba(255, 255, 255, 0.12);
-}
+  --void: #050d30; /* page background, deepest layer (Bask navy) */
+  --surface: #0a1642; /* cards, nav pill, slightly raised */
+  --elevated: #0b1b52; /* hover and prominent panels (Bask navy 2) */
 
-@theme inline {
-  --color-navy: var(--navy);
-  --color-navy-2: var(--navy-2);
-  --color-pink: var(--pink);
-  --color-offwhite: var(--offwhite);
-  --color-ink: var(--ink);
-  --font-display: var(--font-manrope);
-  --font-body: var(--font-inter);
+  --lilac: #f1f3ff; /* primary text and headings, cool white */
+  --ash: #a6adc8; /* secondary body text */
+  --fog: #878eac; /* tertiary text, metadata, helper */
+  --steel: #4e5470; /* deepest muted, dividers */
+
+  --pink: #fa0f4b; /* the single accent, and the one CTA */
+  --pink-2: #ff3d6e;
+
+  --cosmic: linear-gradient(90deg, #fa0f4b 0%, #c13ce0 50%, #6f8cff 100%);
+
+  --rim: inset 0 0 24px rgba(255, 255, 255, 0.05);
+  --rim-strong: inset 0 0 24px rgba(255, 255, 255, 0.07);
+  --rim-pink: inset 0 -7px 11px rgba(250, 15, 75, 0.14);
 }
 
 * {
@@ -37,29 +43,40 @@ html {
 body {
   margin: 0;
   padding: 0;
-  background: var(--navy);
-  color: var(--white);
+  background: var(--void);
+  color: var(--ash);
   font-family: var(--font-inter), system-ui, sans-serif;
-  line-height: 1.55;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  font-feature-settings: "cv10", "ss01";
 }
 
 h1,
 h2,
 h3,
 h4 {
-  font-family: var(--font-manrope), system-ui, sans-serif;
+  font-family: var(--font-inter), system-ui, sans-serif;
+  font-weight: 500; /* medium, never bold: the brand */
+  color: var(--lilac);
   margin: 0;
-  letter-spacing: -0.02em;
-  font-weight: 800;
 }
 
-/* Visible keyboard focus on every interactive element (accessibility floor). */
+p {
+  margin: 0;
+}
+
+a {
+  color: var(--pink);
+  text-decoration: none;
+}
+
 a:focus-visible,
 button:focus-visible {
   outline: 2px solid var(--pink);
   outline-offset: 3px;
-  border-radius: 6px;
+  border-radius: 5px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -68,438 +85,533 @@ button:focus-visible {
   }
 }
 
-/* ---- Fixed signature graphic layer, behind all content, never traps scroll ---- */
+/* ---- Background layers ---- */
 .scene-bg {
   position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
 }
-
+.starfield {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+.starfield span {
+  position: absolute;
+  border-radius: 50%;
+  background: #f1f3ff;
+}
 .page {
   position: relative;
-  z-index: 1;
+  z-index: 2;
 }
 
-/* ---- Navigation ---- */
-.nav {
+/* ---- Centered container ---- */
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 clamp(24px, 5vw, 48px);
+}
+
+/* ---- Floating pill navigation ---- */
+.nav-wrap {
   position: sticky;
-  top: 0;
-  z-index: 10;
+  top: 16px;
+  z-index: 20;
+  display: flex;
+  justify-content: center;
+  padding: 16px;
+  pointer-events: none;
+}
+.nav-pill {
+  pointer-events: auto;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 20px 8vw;
-  background: linear-gradient(
-    to bottom,
-    rgba(5, 13, 48, 0.92),
-    rgba(5, 13, 48, 0)
-  );
-  backdrop-filter: blur(4px);
+  gap: 28px;
+  height: 52px;
+  padding: 8px 8px 8px 22px;
+  border-radius: 999px;
+  background: rgba(10, 22, 66, 0.72);
+  box-shadow: var(--rim);
+  backdrop-filter: blur(12px);
 }
 .logo {
-  font-family: var(--font-manrope), sans-serif;
-  font-weight: 800;
-  font-size: 20px;
-  color: var(--white);
+  font-weight: 600;
+  font-size: 17px;
+  color: var(--lilac);
+  letter-spacing: -0.01em;
   line-height: 1;
 }
 .logo span {
   color: var(--pink);
-  display: block;
   font-size: 9px;
-  font-weight: 700;
+  font-weight: 500;
   letter-spacing: 0.14em;
-  margin-top: 3px;
+  display: block;
+  margin-top: 2px;
 }
 .navlinks {
   display: flex;
-  gap: 28px;
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.8);
+  gap: 26px;
+  font-size: 15px;
 }
 .navlinks a {
-  color: inherit;
-  text-decoration: none;
+  color: var(--ash);
 }
 .navlinks a:hover {
-  color: var(--white);
-}
-
-/* ---- Section rhythm ---- */
-.section {
-  padding: 100px 8vw 90px;
-  position: relative;
-}
-.eyebrow {
-  color: var(--pink);
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  margin-bottom: 18px;
+  color: var(--lilac);
 }
 
 /* ---- Buttons ---- */
 .btn-primary {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: var(--pink);
-  color: var(--white);
+  color: #ffffff;
   border: none;
-  padding: 16px 26px;
-  border-radius: 10px;
-  font-family: var(--font-manrope), sans-serif;
-  font-weight: 700;
+  border-radius: 5px;
+  padding: 12px 18px;
+  font-family: inherit;
+  font-weight: 500;
   font-size: 15px;
   line-height: 1;
   cursor: pointer;
-  text-decoration: none;
-  box-shadow: 0 10px 30px rgba(250, 15, 75, 0.35);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  /* the one action gets a soft pink glow, everything else stays flat */
+  box-shadow: 0 8px 30px rgba(250, 15, 75, 0.3);
+  transition: background 0.15s ease, box-shadow 0.15s ease;
 }
 .btn-primary:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 14px 38px rgba(250, 15, 75, 0.45);
+  background: var(--pink-2);
+  box-shadow: 0 10px 38px rgba(250, 15, 75, 0.42);
 }
 .btn-primary.compact {
-  padding: 11px 18px;
-  font-size: 13px;
-  box-shadow: 0 8px 22px rgba(250, 15, 75, 0.3);
+  padding: 10px 16px;
+  box-shadow: 0 6px 20px rgba(250, 15, 75, 0.28);
 }
 .btn-secondary {
-  color: var(--white);
+  display: inline-flex;
+  align-items: center;
+  color: var(--fog);
   font-size: 15px;
-  text-decoration: underline;
-  text-underline-offset: 4px;
-  opacity: 0.85;
+  font-weight: 500;
+  border-radius: 5px;
+  transition: color 0.15s ease;
 }
 .btn-secondary:hover {
-  opacity: 1;
+  color: var(--lilac);
 }
-.cta-row {
-  display: flex;
+
+/* ---- Chevron text link (feature deep links) ---- */
+.chev-link {
+  display: inline-flex;
   align-items: center;
-  gap: 24px;
-  margin-top: 34px;
-  flex-wrap: wrap;
+  gap: 6px;
+  color: var(--pink);
+  font-weight: 500;
+  font-size: 15px;
+  transition: color 0.15s ease;
+}
+.chev-link svg {
+  transition: transform 0.15s ease;
+}
+.chev-link:hover {
+  color: var(--lilac);
+}
+.chev-link:hover svg {
+  transform: translateX(3px);
+}
+
+/* ---- Badge pill (eyebrows) ---- */
+.badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border-radius: 32px;
+  background: var(--surface);
+  border: 1px solid rgba(250, 15, 75, 0.32);
+  box-shadow: var(--rim-pink);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--lilac);
+  letter-spacing: 0.01em;
+}
+.badge-pill svg {
+  color: var(--pink);
+}
+
+/* ---- Section rhythm ---- */
+.section {
+  position: relative;
+  padding: clamp(72px, 10vw, 120px) 0;
+}
+.section-head {
+  max-width: 62ch;
+  margin: 0 auto;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+.section-head h2 {
+  font-size: clamp(30px, 4.4vw, 52px);
+  line-height: 1.14;
+  letter-spacing: -0.4px;
+}
+.section-head .sub {
+  color: var(--fog);
+  font-size: 18px;
+  line-height: 1.56;
+  max-width: 52ch;
+}
+
+/* ---- Gradient accent text (decorative only, never a fill) ---- */
+.grad-text {
+  background: var(--cosmic);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ---- Aurora divider ---- */
+.aurora {
+  height: 1px;
+  width: 100%;
+  border: none;
+  background: linear-gradient(
+    90deg,
+    rgba(250, 15, 75, 0) 0%,
+    rgba(250, 15, 75, 0.55) 50%,
+    rgba(250, 15, 75, 0) 100%
+  );
+  margin: 0;
 }
 
 /* ---- Hero ---- */
 .hero {
-  min-height: 100vh;
+  min-height: 92vh;
   display: flex;
   flex-direction: column;
   justify-content: center;
+  text-align: center;
+}
+.hero-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 26px;
 }
 .hero h1 {
-  font-size: clamp(34px, 5.4vw, 64px);
+  font-size: clamp(38px, 6vw, 72px);
   line-height: 1.08;
-  max-width: 16ch;
-  /* navy haze to keep the live text legible over the bright dot disc */
-  text-shadow: 0 2px 28px rgba(5, 13, 48, 0.6);
+  letter-spacing: -0.5px;
+  max-width: 18ch;
+  /* navy haze to keep live text legible over the signal graphic */
+  text-shadow: 0 2px 40px rgba(5, 13, 48, 0.7);
 }
 .hero .sub {
-  max-width: 52ch;
-  font-size: 19px;
-  line-height: 1.55;
-  color: rgba(255, 255, 255, 0.82);
-  margin-top: 22px;
-  text-shadow: 0 2px 22px rgba(5, 13, 48, 0.55);
+  max-width: 56ch;
+  font-size: clamp(16px, 1.4vw, 19px);
+  line-height: 1.6;
+  color: var(--ash);
+  text-shadow: 0 2px 30px rgba(5, 13, 48, 0.6);
+}
+.cta-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  flex-wrap: wrap;
+  margin-top: 8px;
 }
 .scrolltip {
-  margin-top: 56px;
+  margin-top: 40px;
   font-size: 12px;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--steel);
 }
 
-/* ---- Off white breathing panel ---- */
-.panel {
-  background: var(--offwhite);
-  color: var(--ink);
-}
-.panel .eyebrow {
-  color: var(--pink);
-}
-.panel h2 {
-  color: var(--navy);
-}
-
-/* ---- Proof strip ---- */
+/* ---- Proof stats (float on the void, no surface) ---- */
 .proof-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 24px;
-  margin-top: 40px;
+  margin-top: 56px;
 }
-.proof-stat {
-  background: var(--white);
-  border: 1px solid #e7e7ee;
-  border-radius: 14px;
-  padding: 26px 22px;
+.stat {
+  text-align: center;
 }
-.proof-num {
-  font-family: var(--font-manrope), sans-serif;
-  font-weight: 800;
-  font-size: 30px;
-  color: var(--navy);
+.stat-num {
+  font-size: 40px;
+  font-weight: 500;
+  color: var(--lilac);
+  line-height: 1.1;
+  letter-spacing: -0.3px;
 }
-.proof-label {
-  font-size: 13px;
-  color: #666;
+.stat-label {
+  font-size: 14px;
+  color: var(--fog);
   margin-top: 8px;
 }
 .needs-input {
   color: var(--pink);
-  font-weight: 700;
-  font-size: 13px;
+  font-weight: 500;
+  font-size: 14px;
 }
 .badge-row {
   display: flex;
   gap: 14px;
-  margin-top: 32px;
+  justify-content: center;
   flex-wrap: wrap;
+  margin-top: 44px;
+}
+.badge-chip {
+  display: inline-flex;
   align-items: center;
-}
-.badge {
-  background: var(--white);
-  border: 1px solid #e7e7ee;
-  border-radius: 10px;
-  padding: 12px 20px;
-  font-weight: 600;
-  color: #333;
+  padding: 10px 18px;
+  border-radius: 32px;
+  background: var(--surface);
+  box-shadow: var(--rim);
   font-size: 14px;
+  color: var(--ash);
 }
-.badge.tokened {
+.badge-chip.tokened {
   color: var(--pink);
-  border-style: dashed;
+  border: 1px dashed rgba(250, 15, 75, 0.4);
 }
 .badge-note {
   width: 100%;
+  text-align: center;
   font-size: 12px;
-  color: #888;
-  margin-top: 4px;
+  color: var(--steel);
+  margin-top: 6px;
+}
+
+/* ---- Cards (glass panels, inset rim light, no border, no shadow) ---- */
+.card {
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 30px;
+  box-shadow: var(--rim);
+}
+
+/* ---- Two path cards ---- */
+.path-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-top: 56px;
+}
+.path-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-radius: 24px;
+  padding: 34px;
+  box-shadow: var(--rim);
+}
+.path-tier {
+  display: inline-flex;
+  align-self: flex-start;
+  color: var(--pink);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.path-card h3 {
+  font-size: 24px;
+  margin-top: 12px;
+}
+.path-card p {
+  color: var(--ash);
+  margin-top: 12px;
+  line-height: 1.6;
+  font-size: 15px;
+}
+.path-card .meta {
+  color: var(--fog);
+  font-size: 13px;
+  margin-top: 14px;
+}
+.path-card .chev-link {
+  margin-top: 22px;
+}
+
+/* ---- Pricing and objections ---- */
+.price-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr 1fr;
+  gap: 24px;
+  margin-top: 56px;
+}
+.price-main {
+  background: var(--elevated);
+  border-radius: 16px;
+  padding: 30px;
+  box-shadow: var(--rim-strong);
+}
+.price-kicker {
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fog);
+}
+.price-main .amt {
+  font-size: 30px;
+  font-weight: 500;
+  color: var(--pink);
+  margin-top: 12px;
+  letter-spacing: -0.3px;
+}
+.price-main p {
+  color: var(--ash);
+  margin-top: 12px;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.price-side {
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 26px;
+  box-shadow: var(--rim);
+}
+.price-side h4 {
+  font-size: 15px;
+  font-weight: 500;
+  margin-bottom: 8px;
+  color: var(--lilac);
+}
+.price-side p {
+  font-size: 14px;
+  color: var(--ash);
+  line-height: 1.6;
+}
+
+/* ---- What we handle (feature cards float, no surface) ---- */
+.handle-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 28px 24px;
+  margin-top: 56px;
+}
+.feature {
+  padding: 4px;
+}
+.feature .icon {
+  color: var(--lilac);
+  margin-bottom: 16px;
+}
+.feature h4 {
+  font-size: 19px;
+  font-weight: 500;
+  margin-bottom: 10px;
+}
+.feature p {
+  color: var(--fog);
+  font-size: 15px;
+  line-height: 1.55;
 }
 
 /* ---- Testimonials ---- */
 .quote-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 22px;
-  margin-top: 40px;
+  gap: 24px;
+  margin-top: 56px;
 }
 .quote-card {
-  background: var(--white);
-  border: 1px solid #e7e7ee;
-  border-radius: 14px;
+  background: var(--surface);
+  border-radius: 16px;
   padding: 26px;
+  box-shadow: var(--rim);
+}
+.quote-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--elevated);
+  box-shadow: var(--rim);
+  flex: none;
+}
+.quote-name {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--lilac);
+}
+.quote-handle {
+  font-size: 14px;
+  color: var(--fog);
 }
 .quote-card p {
   font-size: 15px;
-  line-height: 1.55;
-  color: var(--ink);
+  line-height: 1.6;
+  color: var(--ash);
 }
-.quote-attr {
-  margin-top: 16px;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--navy);
-}
-
-/* ---- Two path cards on navy ---- */
-.paths h2 {
-  color: var(--white);
-  font-size: clamp(28px, 3.6vw, 42px);
-  max-width: 18ch;
-}
-.path-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 32px;
-  margin-top: 48px;
-}
-.path-card {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--hairline);
-  border-radius: 18px;
-  padding: 34px;
-  backdrop-filter: blur(6px);
-  display: flex;
-  flex-direction: column;
-}
-.path-tier {
+.mention {
   color: var(--pink);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-.path-card h3 {
-  color: var(--white);
-  font-size: 24px;
-  margin-top: 10px;
-}
-.path-card p {
-  color: rgba(255, 255, 255, 0.75);
-  margin-top: 12px;
-  line-height: 1.55;
-  font-size: 15px;
-}
-.path-card .meta {
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 13px;
-  margin-top: 14px;
-}
-.path-link {
-  display: inline-block;
-  margin-top: 22px;
-  color: var(--white);
-  font-size: 14px;
-  font-weight: 600;
-  text-decoration: none;
-  border-bottom: 2px solid var(--pink);
-  padding-bottom: 3px;
-  width: fit-content;
-}
-
-/* ---- Pricing and objections ---- */
-.pricing h2 {
-  color: var(--white);
-  font-size: clamp(26px, 3.4vw, 38px);
-  max-width: 20ch;
-}
-.price-grid {
-  display: grid;
-  grid-template-columns: 1.1fr 1fr 1fr;
-  gap: 24px;
-  margin-top: 40px;
-}
-.price-main {
-  background: var(--navy-2);
-  color: var(--white);
-  border: 1px solid var(--hairline);
-  border-radius: 16px;
-  padding: 30px;
-}
-.price-kicker {
-  font-size: 13px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.6);
-}
-.price-main .amt {
-  font-family: var(--font-manrope), sans-serif;
-  font-weight: 800;
-  font-size: 26px;
-  color: var(--pink);
-  margin-top: 10px;
-}
-.price-main p {
-  color: rgba(255, 255, 255, 0.78);
-  margin-top: 12px;
-  font-size: 14px;
-  line-height: 1.5;
-}
-.price-side {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--hairline);
-  border-radius: 16px;
-  padding: 26px;
-}
-.price-side h4 {
-  font-size: 15px;
-  font-weight: 700;
-  margin-bottom: 8px;
-  color: var(--white);
-}
-.price-side p {
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.72);
-  line-height: 1.55;
-}
-
-/* ---- What we handle ---- */
-.handle h2 {
-  color: var(--white);
-  font-size: clamp(26px, 3.4vw, 38px);
-  max-width: 20ch;
-}
-.handle-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 22px;
-  margin-top: 44px;
-}
-.handle-card {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--hairline-soft);
-  border-radius: 14px;
-  padding: 24px;
-}
-.handle-card h4 {
-  color: var(--white);
-  font-size: 16px;
-  margin-bottom: 10px;
-}
-.handle-card p {
-  color: rgba(255, 255, 255, 0.72);
-  font-size: 14px;
-  line-height: 1.5;
 }
 
 /* ---- Final CTA ---- */
 .final-cta {
   text-align: center;
+}
+.final-inner {
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: linear-gradient(180deg, rgba(5, 13, 48, 0), var(--navy) 60%);
+  gap: 28px;
 }
 .final-cta h2 {
-  font-size: clamp(28px, 4vw, 46px);
+  font-size: clamp(32px, 5vw, 60px);
+  line-height: 1.1;
+  letter-spacing: -0.4px;
   max-width: 18ch;
-  margin: 0 auto;
-  color: var(--white);
-}
-.final-cta .cta-row {
-  justify-content: center;
 }
 
 /* ---- Footer ---- */
 .footer {
-  background: var(--navy);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 40px 8vw;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 40px 0;
+  margin-top: 40px;
+}
+.footer .container {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--fog);
 }
 
-/* ---- Responsive floor. Grids collapse, gutters tighten on phones. ---- */
+/* ---- Responsive ---- */
 @media (max-width: 900px) {
   .proof-grid,
-  .handle-grid,
-  .quote-grid {
+  .handle-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+  .quote-grid,
   .path-grid,
   .price-grid {
     grid-template-columns: 1fr;
   }
 }
-@media (max-width: 620px) {
-  .nav {
-    padding: 16px 6vw;
-  }
+@media (max-width: 560px) {
   .navlinks {
     display: none;
   }
-  .section {
-    padding: 88px 6vw 64px;
+  .proof-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
-  .proof-grid,
-  .handle-grid,
-  .quote-grid {
+  .handle-grid {
     grid-template-columns: 1fr;
   }
 }

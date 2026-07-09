@@ -1,292 +1,436 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import {
   EffectComposer,
-  DepthOfField,
   Bloom,
   Vignette,
+  ToneMapping,
+  HueSaturation,
+  Noise,
 } from "@react-three/postprocessing";
+import { ToneMappingMode, BlendFunction } from "postprocessing";
 import * as THREE from "three";
 import { scrollProgress, useScrollProgress } from "./scroll";
 
 /*
-  The Bask signature graphic: Marble Genesis.
+  The Bask signature graphic: Dot Dome, a faithful port of the reference
+  scene's measured state (camera, light rig, animation keyframes, material,
+  fog, and post stack all read from the live scene's published state). The
+  geometry is our own instanced dash dome; the sparse Bask pink accents are
+  the one deliberate deviation.
 
-  One marble sphere holds the hero. As you scroll through the proof panel (which
-  is opaque, so the split happens out of sight), the sphere separates into four
-  smaller spheres that settle two behind the Core Support card and two behind the
-  Managed IT card. Through the middle of the page they stay apart. Near the final
-  call to action they drift back together into one sphere.
-
-  The read: one team, divided into the right lane for you, always one team
-  underneath.
-
-  Motion is one continuous timeline driven by scroll progress 0 to 1, read once
-  per frame. A light rig (blue key plus pink rim) rakes across the marble as you
-  scroll, and bloom lets the lit stone glow.
+  How the reference actually moves:
+  - The camera never moves. The model's parent group does everything:
+    it spins half a turn in the first fifth of the scroll, bobs, and scales,
+    all finished by 50 percent scroll, holding after.
+  - The light rig (two blue point lights) translates across the scene.
+  - A lit grey backdrop plane gives the blue wash behind the hero, then
+    recedes into the fog by 13 percent scroll.
+  - Every keyframe interpolates linearly. Scroll progress is the timeline.
 */
 
-// ---- Camera, measured from the reference framing ----
-const CAMERA_FOV = 30;
-const CAMERA_Z_NEAR = 8.4;
-const CAMERA_Z_FAR = 9.6;
-const LIGHT_RIG_SWEEP = 2.114; // radians on Z across the full scroll
-const STATIC_PROGRESS = 0.06; // frozen hero pose for reduced motion
+// ---- Camera (static; rig z -1.8532 + camera z 8.0692) ----
+const CAM_POS: [number, number, number] = [0, -0.0214, 6.216];
+const CAM_FOV = 30;
+const MOBILE_ZOOM = 0.7;
 
-// ---- Named stages as ranges of scroll progress ----
-const SPLIT_FROM = 0.18;
-const SPLIT_TO = 0.45; // by here the four spheres are settled behind the cards
-const MERGE_FROM = 0.85;
-const MERGE_TO = 1.0; // by here they are one sphere again
+const STATIC_PROGRESS = 0.0; // reduced motion holds the hero pose
 
-// Where each of the four spheres settles. Two land behind the left card
-// (Core Support), two behind the right card (Managed IT), pushed slightly back
-// in z so depth of field softens them behind the translucent cards.
-const SETTLE: [number, number, number][] = [
-  [-2.15, 0.75, -0.4],
-  [-1.7, -0.95, -0.75],
-  [2.15, 0.75, -0.4],
-  [1.7, -0.95, -0.75],
-];
-// Hero sits a touch right and up so the live headline (left aligned) stays clear.
-const GENESIS_CENTER: [number, number, number] = [0.6, 0.3, 0];
-const MERGE_CENTER: [number, number, number] = [0, 0, 0];
-// Nested radii in the hero so the four coincident spheres read as one solid ball
-// (distinct radii means no z fighting). They shrink as they separate.
-const GENESIS_SCALE = [1.3, 1.12, 0.98, 0.86];
-const SETTLE_SCALE = 0.62;
+// ---- Keyframe tracks measured from the reference (linear, hold at ends) ----
+type Track = [number, number][];
+const TRACKS: Record<string, Track> = {
+  mainPx: [
+    [0, 0],
+    [0.101, 2.273],
+    [0.151, 2.273],
+    [0.208, 0.122],
+    [0.459, 0.122],
+    [0.5, 5.724],
+  ],
+  mainPy: [
+    [0, 2.161],
+    [0.101, 0.065],
+    [0.151, 2.633],
+    [0.208, 0.063],
+    [0.5, 0.063],
+  ],
+  mainPz: [
+    [0, 0],
+    [0.208, 0],
+    [0.398, -8.279],
+    [0.459, -8.279],
+    [0.5, -3.773],
+  ],
+  mainRy: [
+    [0, 0],
+    [0.101, 1.571],
+    [0.151, 1.571],
+    [0.208, 3.142],
+    [0.459, 3.142],
+    [0.5, 2.725],
+  ],
+  mainS: [
+    [0, 1.51],
+    [0.101, 1.689],
+    [0.151, 1.689],
+    [0.208, 2.332],
+    [0.398, 1.337],
+    [0.459, 1.773],
+    [0.5, 3.063],
+  ],
+  mainSz: [
+    [0, 1.51],
+    [0.101, 1.689],
+    [0.151, 1.689],
+    [0.208, 2.547],
+    [0.398, 1.461],
+    [0.459, 1.936],
+    [0.5, 3.345],
+  ],
+  lightPx: [
+    [0, 0],
+    [0.1, 1.188],
+    [0.2, 1.188],
+    [0.3, 0],
+    [0.35, 0],
+    [0.4, 2.114],
+  ],
+  lightPy: [
+    [0, 1.321],
+    [0.1, 0],
+    [0.4, 0],
+  ],
+  lightPz: [
+    [0, 3.996],
+    [0.2, 3.996],
+    [0.3, 0],
+    [0.35, 0],
+    [0.4, 4.65],
+  ],
+  bgPz: [
+    [0, -9.902],
+    [0.085, -9.902],
+    [0.11, -11.329],
+    [0.129, -60.732],
+  ],
+};
 
-function lerp(a: number, b: number, t: number): number {
-  return a + (b - a) * t;
-}
-function clamp01(v: number): number {
-  return Math.max(0, Math.min(1, v));
-}
-function smoothstep(a: number, b: number, x: number): number {
-  const t = clamp01((x - a) / (b - a));
-  return t * t * (3 - 2 * t);
-}
-function stage(p: number, a: number, b: number): number {
-  return clamp01((p - a) / (b - a));
-}
-
-// Pure function: where sphere i sits at scroll progress p.
-function sphereTransform(
-  i: number,
-  p: number
-): { pos: [number, number, number]; scale: number } {
-  const ts = smoothstep(SPLIT_FROM, SPLIT_TO, p);
-  const tm = smoothstep(MERGE_FROM, MERGE_TO, p);
-
-  let x = lerp(GENESIS_CENTER[0], SETTLE[i][0], ts);
-  let y = lerp(GENESIS_CENTER[1], SETTLE[i][1], ts);
-  let z = lerp(GENESIS_CENTER[2], SETTLE[i][2], ts);
-  x = lerp(x, MERGE_CENTER[0], tm);
-  y = lerp(y, MERGE_CENTER[1], tm);
-  z = lerp(z, MERGE_CENTER[2], tm);
-
-  let s = lerp(GENESIS_SCALE[i], SETTLE_SCALE, ts);
-  s = lerp(s, GENESIS_SCALE[i], tm);
-
-  return { pos: [x, y, z], scale: s };
-}
-
-// ---- Procedural cool grey marble texture, generated on a canvas so nothing is
-// fetched over the network. Value noise -> fbm -> turbulence veining. ----
-function makeMarbleTexture(size: number): THREE.CanvasTexture {
-  const canvas = document.createElement("canvas");
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext("2d")!;
-  const img = ctx.createImageData(size, size);
-
-  const hash = (x: number, y: number) => {
-    const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
-    return s - Math.floor(s);
-  };
-  const fade = (t: number) => t * t * (3 - 2 * t);
-  const vnoise = (x: number, y: number) => {
-    const xi = Math.floor(x);
-    const yi = Math.floor(y);
-    const xf = x - xi;
-    const yf = y - yi;
-    const tl = hash(xi, yi);
-    const tr = hash(xi + 1, yi);
-    const bl = hash(xi, yi + 1);
-    const br = hash(xi + 1, yi + 1);
-    const u = fade(xf);
-    const v = fade(yf);
-    return (tl * (1 - u) + tr * u) * (1 - v) + (bl * (1 - u) + br * u) * v;
-  };
-  const fbm = (x: number, y: number) => {
-    let f = 0;
-    let a = 0.5;
-    let fr = 1;
-    for (let o = 0; o < 5; o++) {
-      f += a * vnoise(x * fr, y * fr);
-      a *= 0.5;
-      fr *= 2;
-    }
-    return f;
-  };
-
-  // base near white, cool grey veins
-  const base = [233, 234, 240];
-  const vein = [138, 147, 166];
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const nx = (x / size) * 6;
-      const ny = (y / size) * 6;
-      const turb = fbm(nx, ny);
-      let m = Math.sin((nx + turb * 4.5) * Math.PI); // -1..1
-      m = Math.pow(Math.abs(m), 0.45); // 0 at vein center, sharpen the veins
-      const idx = (y * size + x) * 4;
-      img.data[idx] = vein[0] + (base[0] - vein[0]) * m;
-      img.data[idx + 1] = vein[1] + (base[1] - vein[1]) * m;
-      img.data[idx + 2] = vein[2] + (base[2] - vein[2]) * m;
-      img.data[idx + 3] = 255;
+function sample(track: Track, t: number): number {
+  if (t <= track[0][0]) return track[0][1];
+  const last = track[track.length - 1];
+  if (t >= last[0]) return last[1];
+  for (let i = 1; i < track.length; i++) {
+    if (t <= track[i][0]) {
+      const [t0, v0] = track[i - 1];
+      const [t1, v1] = track[i];
+      const f = (t - t0) / (t1 - t0);
+      return v0 + (v1 - v0) * f;
     }
   }
-  ctx.putImageData(img, 0, 0);
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.RepeatWrapping;
-  tex.anisotropy = 4;
-  return tex;
+  return last[1];
 }
 
-function Spheres({ animate, mobile }: { animate: boolean; mobile: boolean }) {
+// ---- Dome geometry: concentric rings of dashes in the XY plane, bowl along
+// Z so the reference's Y spin sweeps it from face on to edge on. ----
+const MAX_R = 2.0;
+const DOME_DEPTH = 1.5; // rim sits toward the camera, center recedes
+const RIM_WAVE = 0.28; // scalloped petal wave
+const PETALS = 9;
+
+function buildDome(mobile: boolean): {
+  blue: { positions: Float32Array; angles: Float32Array; count: number };
+  pink: { positions: Float32Array; angles: Float32Array; count: number };
+  dashLong: number;
+  dashThin: number;
+} {
+  const RINGS = mobile ? 22 : 34;
+  const DENSITY = mobile ? 12 : 21; // dots nearly touch along a ring
+  const INNER = mobile ? 4 : 6;
+
+  const bluePos: number[] = [];
+  const blueAng: number[] = [];
+  const pinkPos: number[] = [];
+  const pinkAng: number[] = [];
+
+  for (let ri = INNER; ri <= RINGS; ri++) {
+    const r = (ri / RINGS) * MAX_R;
+    const circ = 2 * Math.PI * r;
+    const count = Math.max(8, Math.floor(circ * DENSITY));
+    for (let j = 0; j < count; j++) {
+      const theta = (j / count) * Math.PI * 2 + ri * 0.012;
+      const bowl = DOME_DEPTH * (r / MAX_R) * (r / MAX_R);
+      const scallop =
+        RIM_WAVE * Math.sin(theta * PETALS) * (r / MAX_R) * (r / MAX_R);
+      const x = r * Math.cos(theta);
+      const y = r * Math.sin(theta);
+      const z = bowl + scallop;
+      // sparse pink accents near the center: the Bask signal
+      const isPink = r / MAX_R < 0.34 && Math.random() < 0.11;
+      if (isPink) {
+        pinkPos.push(x, y, z);
+        pinkAng.push(theta);
+      } else {
+        bluePos.push(x, y, z);
+        blueAng.push(theta);
+      }
+    }
+  }
+
+  return {
+    blue: {
+      positions: new Float32Array(bluePos),
+      angles: new Float32Array(blueAng),
+      count: blueAng.length,
+    },
+    pink: {
+      positions: new Float32Array(pinkPos),
+      angles: new Float32Array(pinkAng),
+      count: pinkAng.length,
+    },
+    dashLong: mobile ? 0.042 : 0.038,
+    dashThin: 0.016,
+  };
+}
+
+function DashSet({
+  positions,
+  angles,
+  count,
+  dashLong,
+  dashThin,
+  color,
+  emissive,
+}: {
+  positions: Float32Array;
+  angles: Float32Array;
+  count: number;
+  dashLong: number;
+  dashThin: number;
+  color: string;
+  emissive: string;
+}) {
+  const meshRef = useRef<THREE.InstancedMesh>(null);
+  const invalidate = useThree((s) => s.invalidate);
+
+  useLayoutEffect(() => {
+    const mesh = meshRef.current;
+    if (!mesh) return;
+    const m = new THREE.Matrix4();
+    const q = new THREE.Quaternion();
+    const zAxis = new THREE.Vector3(0, 0, 1);
+    const p = new THREE.Vector3();
+    const s = new THREE.Vector3(dashLong, dashThin, dashThin);
+    for (let i = 0; i < count; i++) {
+      p.set(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]);
+      q.setFromAxisAngle(zAxis, angles[i] + Math.PI / 2); // dash along the ring
+      m.compose(p, q, s);
+      mesh.setMatrixAt(i, m);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+    invalidate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [count]);
+
+  return (
+    <instancedMesh
+      ref={meshRef}
+      args={[undefined, undefined, count]}
+      frustumCulled={false}
+    >
+      <boxGeometry args={[1, 1, 1]} />
+      {/* reference material: lit metal with matching emissive, roughness 1 */}
+      <meshStandardMaterial
+        color={color}
+        emissive={emissive}
+        emissiveIntensity={1}
+        metalness={1}
+        roughness={1}
+      />
+    </instancedMesh>
+  );
+}
+
+function MainController({
+  animate,
+  mobile,
+  staticProgress,
+}: {
+  animate: boolean;
+  mobile: boolean;
+  staticProgress: number;
+}) {
   const group = useRef<THREE.Group>(null);
-  const meshes = useRef<(THREE.Mesh | null)[]>([]);
+  const dome = useRef<THREE.Group>(null);
   const eased = useRef(0);
-  const marble = useMemo(() => makeMarbleTexture(mobile ? 256 : 512), [mobile]);
+  const geo = useMemo(() => buildDome(mobile), [mobile]);
 
-  useFrame((state, delta) => {
-    if (!animate) return;
-    eased.current += (scrollProgress.current - eased.current) * 0.08;
-    const p = eased.current;
-    for (let i = 0; i < 4; i++) {
-      const mesh = meshes.current[i];
-      if (!mesh) continue;
-      const { pos, scale } = sphereTransform(i, p);
-      mesh.position.set(pos[0], pos[1], pos[2]);
-      mesh.scale.setScalar(scale);
-      mesh.rotation.y += delta * 0.12 * (i % 2 ? -1 : 1);
-    }
-    if (group.current) {
-      group.current.rotation.z = state.clock.elapsedTime * 0.03;
-      group.current.rotation.x = -0.05 + p * 0.12;
-    }
-  });
+  const apply = (t: number, time: number) => {
+    const g = group.current;
+    if (!g) return;
+    g.position.set(
+      sample(TRACKS.mainPx, t),
+      sample(TRACKS.mainPy, t),
+      sample(TRACKS.mainPz, t)
+    );
+    g.rotation.y = sample(TRACKS.mainRy, t);
+    const s = sample(TRACKS.mainS, t);
+    g.scale.set(s, s, sample(TRACKS.mainSz, t));
+    // stand in for the reference model's slow baked ambient clip
+    if (dome.current) dome.current.rotation.z = time * 0.04;
+  };
 
-  const seg = mobile ? 48 : 96;
+  useLayoutEffect(() => {
+    apply(staticProgress, 0.0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [staticProgress]);
 
-  return (
-    <group
-      ref={group}
-      rotation={animate ? undefined : [-0.05 + STATIC_PROGRESS * 0.12, 0, 0]}
-    >
-      {[0, 1, 2, 3].map((i) => {
-        const t = sphereTransform(i, STATIC_PROGRESS);
-        return (
-          <mesh
-            key={i}
-            ref={(el) => {
-              meshes.current[i] = el;
-            }}
-            position={animate ? undefined : t.pos}
-            scale={animate ? undefined : t.scale}
-          >
-            <sphereGeometry args={[1, seg, seg]} />
-            {/* Polished cool marble. Clearcoat gives the wet stone highlight the
-                two colored lights bloom into. */}
-            <meshPhysicalMaterial
-              map={marble}
-              color="#ffffff"
-              roughness={0.35}
-              metalness={0}
-              clearcoat={1}
-              clearcoatRoughness={0.22}
-              emissive="#0A1330"
-              emissiveIntensity={0.05}
-            />
-          </mesh>
-        );
-      })}
-    </group>
-  );
-}
-
-function LightRig({ animate }: { animate: boolean }) {
-  const rig = useRef<THREE.Group>(null);
-  const eased = useRef(0);
-
-  useFrame(() => {
-    if (!animate || !rig.current) return;
-    eased.current += (scrollProgress.current - eased.current) * 0.08;
-    rig.current.rotation.z = eased.current * LIGHT_RIG_SWEEP;
-  });
-
-  return (
-    <group
-      ref={rig}
-      rotation={animate ? undefined : [0, 0, STATIC_PROGRESS * LIGHT_RIG_SWEEP]}
-    >
-      {/* blue key light, reaches across to the spread spheres */}
-      <pointLight
-        color="#2E7BFF"
-        intensity={14}
-        distance={16}
-        decay={2}
-        position={[2.6, 1.4, 3.2]}
-      />
-      {/* pink rim light, the Bask brand accent */}
-      <pointLight
-        color="#FA0F4B"
-        intensity={18}
-        distance={16}
-        decay={2}
-        position={[-2.6, -1.2, 3.0]}
-      />
-    </group>
-  );
-}
-
-function CameraRig({ animate }: { animate: boolean }) {
-  const eased = useRef(0);
   useFrame((state) => {
     if (!animate) return;
     eased.current += (scrollProgress.current - eased.current) * 0.08;
-    state.camera.position.z = lerp(
-      CAMERA_Z_NEAR,
-      CAMERA_Z_FAR,
-      stage(eased.current, 0, 0.6)
+    apply(eased.current, state.clock.elapsedTime);
+  });
+
+  return (
+    <group ref={group}>
+      <group ref={dome}>
+        <DashSet {...geo.blue} dashLong={geo.dashLong} dashThin={geo.dashThin}
+          color="#6DA3FF" emissive="#6DA3FF" />
+        <DashSet {...geo.pink} dashLong={geo.dashLong} dashThin={geo.dashThin}
+          color="#FA0F4B" emissive="#FA0F4B" />
+      </group>
+    </group>
+  );
+}
+
+function LightController({
+  animate,
+  staticProgress,
+}: {
+  animate: boolean;
+  staticProgress: number;
+}) {
+  const group = useRef<THREE.Group>(null);
+  const eased = useRef(0);
+
+  const apply = (t: number) => {
+    const g = group.current;
+    if (!g) return;
+    g.position.set(
+      sample(TRACKS.lightPx, t),
+      sample(TRACKS.lightPy, t),
+      sample(TRACKS.lightPz, t)
     );
-    state.camera.lookAt(0, 0, 0);
+  };
+
+  useLayoutEffect(() => {
+    apply(staticProgress);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [staticProgress]);
+
+  useFrame(() => {
+    if (!animate) return;
+    eased.current += (scrollProgress.current - eased.current) * 0.08;
+    apply(eased.current);
+  });
+
+  return (
+    <group ref={group}>
+      {/* both reference lights are the same blue. The decay 0 light is scaled
+          down for this renderer so dots read blue with highlights, not white. */}
+      <pointLight
+        color="#1786FF"
+        intensity={5}
+        distance={34.15}
+        decay={0}
+        position={[0.866, 1.182, 1.221]}
+      />
+      <pointLight
+        color="#1786FF"
+        intensity={25}
+        distance={20}
+        decay={1.76}
+        position={[-1.08, -0.942, 1.221]}
+      />
+    </group>
+  );
+}
+
+function Backdrop({
+  animate,
+  staticProgress,
+}: {
+  animate: boolean;
+  staticProgress: number;
+}) {
+  const mesh = useRef<THREE.Mesh>(null);
+  const eased = useRef(0);
+
+  const apply = (t: number) => {
+    if (mesh.current) mesh.current.position.z = sample(TRACKS.bgPz, t);
+  };
+
+  useLayoutEffect(() => {
+    apply(staticProgress);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [staticProgress]);
+
+  useFrame(() => {
+    if (!animate) return;
+    eased.current += (scrollProgress.current - eased.current) * 0.08;
+    apply(eased.current);
+  });
+
+  // the grey plane the blue lights wash across, giving the hero its glow
+  return (
+    <mesh ref={mesh} scale={[26.98, 15.45, 1]} position={[0, 0, -9.902]}>
+      <planeGeometry args={[1, 1]} />
+      <meshStandardMaterial color="#6A6A6A" metalness={0.41} roughness={0.64} />
+    </mesh>
+  );
+}
+
+function MouseTilt({ enabled }: { enabled: boolean }) {
+  const target = useRef({ x: 0, y: 0 });
+  useEffect(() => {
+    if (!enabled) return;
+    const onMove = (e: MouseEvent) => {
+      target.current.x = e.clientX / window.innerWidth - 0.5;
+      target.current.y = e.clientY / window.innerHeight - 0.5;
+    };
+    window.addEventListener("mousemove", onMove, { passive: true });
+    return () => window.removeEventListener("mousemove", onMove);
+  }, [enabled]);
+
+  useFrame((state) => {
+    if (!enabled) return;
+    const cam = state.camera;
+    cam.position.x += (target.current.x * 0.35 - cam.position.x) * 0.04;
+    cam.position.y +=
+      (CAM_POS[1] - target.current.y * 0.2 - cam.position.y) * 0.04;
+    cam.lookAt(0, 0, 0);
   });
   return null;
 }
 
-function PostFX({ mobile }: { mobile: boolean }) {
-  // Reference stack order: depth of field, bloom, vignette.
+function PostFX() {
+  // Reference stack and order: bloom, vignette, tone mapping, saturation, noise.
+  // Blend functions decoded from the reference state: bloom SCREEN (default),
+  // noise SOFT_LIGHT, the rest NORMAL.
   return (
-    <EffectComposer>
-      {mobile ? (
-        <></>
-      ) : (
-        <DepthOfField focusDistance={0.09} focalLength={0.02} bokehScale={2.2} />
-      )}
+    <EffectComposer multisampling={8}>
       <Bloom
-        intensity={0.55}
-        luminanceThreshold={0.5}
-        luminanceSmoothing={0.8}
+        intensity={1.0}
+        luminanceThreshold={0.9}
+        luminanceSmoothing={0.028}
         mipmapBlur
-        radius={0.55}
+        radius={0.89}
       />
-      <Vignette offset={0.32} darkness={0.9} />
+      <Vignette offset={0.2} darkness={0.5} />
+      <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
+      <HueSaturation saturation={0.2} />
+      <Noise opacity={0.2} blendFunction={BlendFunction.SOFT_LIGHT} />
     </EffectComposer>
   );
 }
@@ -307,9 +451,8 @@ export default function SignatureScene() {
   }, []);
 
   // The canvas sits in a position fixed container. On first mount R3F can
-  // measure that container as zero before its own resize listener is attached,
-  // leaving the canvas at its default 300x150. Kick a re-measure a few times
-  // until R3F sizes the canvas (it stamps an inline width once it does).
+  // measure that container as zero before its own resize listener is attached.
+  // Kick a re-measure until R3F sizes the canvas.
   useEffect(() => {
     if (!ready) return;
     let tries = 0;
@@ -336,22 +479,26 @@ export default function SignatureScene() {
       dpr={[1, mobile ? 1.5 : 2]}
       gl={{ antialias: true, alpha: false, powerPreference: "high-performance" }}
       camera={{
-        fov: CAMERA_FOV,
+        fov: CAM_FOV,
         near: 0.1,
-        far: 100,
-        position: [0, 0, CAMERA_Z_NEAR],
+        far: 1000,
+        position: CAM_POS,
+        zoom: mobile ? MOBILE_ZOOM : 1,
       }}
     >
-      <color attach="background" args={["#050D30"]} />
-      <ambientLight intensity={0.25} color="#7C8CFF" />
-      <hemisphereLight
-        args={["#3A5BFF", "#050D30", 0.18]}
-        position={[0, 1, 0]}
+      {/* background and fog share one color, as in the reference, so the
+          fogged backdrop plane disappears seamlessly into the void */}
+      <color attach="background" args={["#030818"]} />
+      <fog attach="fog" args={["#030818", 10, 20]} />
+      <MainController
+        animate={animate}
+        mobile={mobile}
+        staticProgress={STATIC_PROGRESS}
       />
-      <Spheres animate={animate} mobile={mobile} />
-      <LightRig animate={animate} />
-      <CameraRig animate={animate} />
-      <PostFX mobile={mobile} />
+      <LightController animate={animate} staticProgress={STATIC_PROGRESS} />
+      <Backdrop animate={animate} staticProgress={STATIC_PROGRESS} />
+      <MouseTilt enabled={animate && !mobile} />
+      <PostFX />
     </Canvas>
   );
 }
